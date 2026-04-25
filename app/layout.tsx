@@ -1,14 +1,36 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { I18nProvider } from "@/lib/i18n-context";
 
 export const metadata: Metadata = {
-  title: "Chess Arena — jogue xadrez contra o Stockfish",
+  title: "Chess Arena — play chess vs Stockfish, fully offline",
   description:
-    "Tabuleiro de xadrez no navegador com Stockfish em 6 níveis de dificuldade. 100% local, sem login.",
+    "Play chess against Stockfish in your browser with a real-time coach that grades every move. 6 difficulty levels, no login, no server, no tracking. Free offline chess trainer in EN / PT / ES.",
+  keywords: [
+    "chess",
+    "stockfish",
+    "chess coach",
+    "play chess online",
+    "free chess",
+    "chess trainer",
+    "chess engine",
+    "browser chess",
+    "xadrez online",
+    "ajedrez",
+  ],
   openGraph: {
-    title: "Chess Arena",
-    description: "Jogue xadrez contra o Stockfish, no navegador.",
+    title: "Chess Arena — Stockfish + live coach, in your browser",
+    description:
+      "Play chess vs Stockfish with a real-time coach grading every move. Fully offline. Free, no login.",
     type: "website",
+    locale: "en_US",
+    alternateLocale: ["pt_BR", "es_ES"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Chess Arena — Stockfish + live coach",
+    description:
+      "Play chess vs Stockfish with a real-time coach grading every move. Fully offline. Free, no login.",
   },
 };
 
@@ -18,8 +40,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <body>{children}</body>
+    <html lang="en">
+      <body>
+        <I18nProvider>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

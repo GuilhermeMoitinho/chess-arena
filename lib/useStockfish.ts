@@ -17,9 +17,13 @@ export type Evaluation = {
   whitePerspective: number;
 };
 
+type Pending =
+  | { kind: "find"; resolve: (m: EngineMove | null) => void }
+  | { kind: "analyze"; resolve: (e: Evaluation | null) => void; lastEval: Evaluation | null };
+
 export function useStockfish() {
   const workerRef = useRef<Worker | null>(null);
-  const resolverRef = useRef<((m: EngineMove | null) => void) | null>(null);
+  const pendingRef = useRef<Pending | null>(null);
   const searchTurnRef = useRef<"w" | "b">("w");
   const [status, setStatus] = useState<EngineStatus>("loading");
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
@@ -42,37 +46,43 @@ export function useStockfish() {
         const cp = line.match(/score cp (-?\d+)/);
         const mate = line.match(/score mate (-?\d+)/);
         const turn = searchTurnRef.current;
+        let ev: Evaluation | null = null;
         if (cp) {
           const v = parseInt(cp[1], 10);
-          setEvaluation({
-            type: "cp",
-            value: v,
-            whitePerspective: turn === "w" ? v : -v,
-          });
+          ev = { type: "cp", value: v, whitePerspective: turn === "w" ? v : -v };
         } else if (mate) {
           const v = parseInt(mate[1], 10);
           const wp = turn === "w" ? (v > 0 ? 9999 : -9999) : v > 0 ? -9999 : 9999;
-          setEvaluation({ type: "mate", value: v, whitePerspective: wp });
+          ev = { type: "mate", value: v, whitePerspective: wp };
+        }
+        if (ev) {
+          setEvaluation(ev);
+          const p = pendingRef.current;
+          if (p && p.kind === "analyze") p.lastEval = ev;
         }
         return;
       }
       if (line.startsWith("bestmove")) {
         const parts = line.split(/\s+/);
         const uci = parts[1];
-        if (resolverRef.current) {
+        const p = pendingRef.current;
+        pendingRef.current = null;
+        setStatus("ready");
+        if (!p) return;
+        if (p.kind === "find") {
           if (!uci || uci === "(none)") {
-            resolverRef.current(null);
+            p.resolve(null);
           } else {
-            resolverRef.current({
+            p.resolve({
               from: uci.slice(0, 2),
               to: uci.slice(2, 4),
               promotion: uci.length > 4 ? uci.slice(4, 5) : undefined,
               uci,
             });
           }
-          resolverRef.current = null;
+        } else {
+          p.resolve(p.lastEval);
         }
-        setStatus("ready");
       }
     };
 
@@ -89,13 +99,31 @@ export function useStockfish() {
     (fen: string, opts: { skill: number; movetimeMs: number }): Promise<EngineMove | null> => {
       const w = workerRef.current;
       if (!w) return Promise.resolve(null);
+      if (pendingRef.current) return Promise.resolve(null);
       setStatus("thinking");
       searchTurnRef.current = (fen.split(" ")[1] as "w" | "b") || "w";
       w.postMessage(`setoption name Skill Level value ${opts.skill}`);
       w.postMessage(`position fen ${fen}`);
       w.postMessage(`go movetime ${opts.movetimeMs}`);
       return new Promise(resolve => {
-        resolverRef.current = resolve;
+        pendingRef.current = { kind: "find", resolve };
+      });
+    },
+    []
+  );
+
+  const analyze = useCallback(
+    (fen: string, movetimeMs: number): Promise<Evaluation | null> => {
+      const w = workerRef.current;
+      if (!w) return Promise.resolve(null);
+      if (pendingRef.current) return Promise.resolve(null);
+      setStatus("thinking");
+      searchTurnRef.current = (fen.split(" ")[1] as "w" | "b") || "w";
+      w.postMessage(`setoption name Skill Level value 20`);
+      w.postMessage(`position fen ${fen}`);
+      w.postMessage(`go movetime ${movetimeMs}`);
+      return new Promise(resolve => {
+        pendingRef.current = { kind: "analyze", resolve, lastEval: null };
       });
     },
     []
@@ -107,5 +135,5 @@ export function useStockfish() {
 
   const resetEvaluation = useCallback(() => setEvaluation(null), []);
 
-  return { status, evaluation, findMove, stop, resetEvaluation };
+  return { status, evaluation, findMove, analyze, stop, resetEvaluation };
 }
