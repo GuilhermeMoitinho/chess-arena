@@ -3,7 +3,7 @@
 > Jogue xadrez no navegador contra o **Stockfish**. 100% local, sem login, sem servidor.
 > *Play chess against Stockfish in your browser. Fully local, no signup, no server.*
 
-**🎮 Live demo:** https://chess-arena-seven.vercel.app
+**🎮 Live demo:** https://chess-arena-delta.vercel.app
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)
